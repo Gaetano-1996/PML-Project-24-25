@@ -281,19 +281,22 @@ def generate_save_samples(model,
     None
     """
 
-    progress_bar = tqdm(range(n_samples), desc="Image Generation")
-
     # root directory
     root_dir = root_dir
     # class directory (for dataloader)
     class_name = "generated"
     class_dir = os.path.join(root_dir, class_name)
     # create the directory
-    os.makedirs(class_dir, exist_ok=True)
+    if os.path.exists(class_dir) and os.path.isdir(class_dir):
+        print("Sample have been already generated.\n")
+        return
+    else:
+        os.makedirs(class_dir, exist_ok=False)
 
     # Generate and save images
     # model in evaluation mode
     model.eval()
+    progress_bar = tqdm(range(n_samples), desc="Image Generation")
 
     with torch.no_grad():
         for batch_idx, data in enumerate(mnist_dataloader):
@@ -407,26 +410,25 @@ def compute_fid(generated_images_dir="./generated_images",
         progress = math.ceil(10000 / batch_size)
 
     progress_bar1 = tqdm(range(progress), desc="Loading real data into FID object")
-    progress_bar2 = tqdm(range(progress), desc="Loading generated data into FID object")
-
     # Loading real images to FID object
     for batch_idx, (data, _) in enumerate(dataloader_eval):
         fid.update(data, is_real=True)
-        progress_bar1.set_postfix(batch=f"⠀{batch_idx:5d}")
+        progress_bar1.set_postfix(batch=f"{batch_idx+1:3d}")
         progress_bar1.update()
         if eval_batches is not None and batch_idx == eval_batches - 1:
             break
 
+    progress_bar2 = tqdm(range(progress), desc="Loading generated data into FID object")
     # Loading generated images to FID object
     for batch_idx, (data, _) in enumerate(dataloader_gen):
         fid.update(data, is_real=False)
-        progress_bar2.set_postfix(batch=f"⠀{batch_idx:5d}")
+        progress_bar2.set_postfix(batch=f"{batch_idx+1:3d}")
         progress_bar2.update()
         if eval_batches is not None and batch_idx == eval_batches - 1:
             break
 
     print("Computing FID...")
     res = fid.compute()
-    print(f"FID: {res}")
+    print(f"FID: {res}.\n")
 
     return res
