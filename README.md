@@ -1,6 +1,20 @@
 # PML-Project-24-25
+## General 
+Before running the code, make sure you have the following packages installed:
+* torch==2.3.0
+* torchvision==0.18.0
+* tocheval==0.0.7
+* tqdm==4.66.5
+* numpy==1.26.4
+* matplotlib==3.9.2
+* scipy==1.14.1
+* sklearn==1.5.1
+* pyro==1.9.1
 
+In order to install the packages, you can download the `requirements.txt` file form the repo and use the following command:
+```pip install -r requirements.txt```
 
+## Exercise A
 ## Exercise B
 
 There are 3 notebooks covering exercise B:
