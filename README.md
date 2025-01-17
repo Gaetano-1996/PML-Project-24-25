@@ -31,6 +31,7 @@ The files relative to exercise A are:
 * `model_comparison.ipynb`: notebook executing the evaluation of the models (in our case generating the data for the models and computing FID)
 * `visual_comparison.ipynb`: notebook executing the visual comparison of the models
 * `model_checkpoints`: folder containing the checkpoints of the models trained. The checkpoints are meant as shortcut to run the model comparison (both numerical and visual) without retraining the models.
+* `visual`: folder containing the visual comparison of the models.
 
 ## Exercise B
 There are 3 notebooks covering exercise B:

@@ -5,6 +5,7 @@ from utils import *
 
 #### Basic DDPM ########################################################################################################
 
+
 class DDPM_classic(nn.Module):
 
     def __init__(self, network, T=100, beta_1=1e-4, beta_T=2e-2):
@@ -28,9 +29,9 @@ class DDPM_classic(nn.Module):
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t: (self._network(x.reshape(-1, 1, 28, 28),
-                                                   (t.squeeze() / T))
-                                     ).reshape(-1, 28 * 28)
+        self.network = lambda x, t: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T))
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
@@ -41,7 +42,7 @@ class DDPM_classic(nn.Module):
         self.register_buffer("alpha_bar", self.alpha.cumprod(dim=0))
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
         Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
@@ -59,7 +60,7 @@ class DDPM_classic(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        '''
+        """
 
         mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
@@ -86,9 +87,23 @@ class DDPM_classic(nn.Module):
             image at timestep t-1
         """
 
-        mean = 1. / torch.sqrt(self.alpha[t]) * (
-                    xt - (self.beta[t]) / torch.sqrt(1 - self.alpha_bar[t]) * self.network(xt, t))
-        std = torch.where(t > 0, torch.sqrt(((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]), 0)
+        mean = (
+            1.0
+            / torch.sqrt(self.alpha[t])
+            * (
+                xt
+                - (self.beta[t])
+                / torch.sqrt(1 - self.alpha_bar[t])
+                * self.network(xt, t)
+            )
+        )
+        std = torch.where(
+            t > 0,
+            torch.sqrt(
+                ((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]
+            ),
+            0,
+        )
 
         return mean + std * epsilon
 
@@ -142,7 +157,7 @@ class DDPM_classic(nn.Module):
 
         xt = self.forward_diffusion(x0, t, epsilon)
 
-        return -nn.MSELoss(reduction='mean')(epsilon, self.network(xt, t))
+        return -nn.MSELoss(reduction="mean")(epsilon, self.network(xt, t))
 
     def loss(self, x0):
         """
@@ -150,24 +165,27 @@ class DDPM_classic(nn.Module):
         """
         return -self.elbo(x0).mean()
 
+
 #### DIFFERENT SAMPLING STRATEGIES #####################################################################################
 
 #### DDPM with low discrepancy sampling ################################################################################
+
 
 # Low discrepancy sampling with Sobol sequence
 def low_discrepancy_sobol(num_samples, t_max):
     # Generate Sobol low-discrepancy samples
     sampler = qmc.Sobol(d=1, scramble=True)
-    # handling the base2 
+    # handling the base2
     M = math.log2(num_samples)
     m = math.ceil(M)
-    # generating the actual sample 
-    samples = sampler.random_base2(m = m)
-    # taking the exact number of samples 
+    # generating the actual sample
+    samples = sampler.random_base2(m=m)
+    # taking the exact number of samples
     if len(samples) > num_samples:
         samples = samples[:num_samples]
     # mapping them to integer
     return torch.tensor((samples * t_max).astype(int), dtype=torch.long)
+
 
 # Low discrepancy sampling with simple method
 def low_discrepancy_simple(num_sample, t_max):
@@ -182,6 +200,7 @@ def low_discrepancy_simple(num_sample, t_max):
     t_indices = (t_i * t_max).to(torch.int64) + 1
     t = t_indices.unsqueeze(-1)
     return t
+
 
 class DDPM_low_discrepancy(nn.Module):
 
@@ -208,9 +227,9 @@ class DDPM_low_discrepancy(nn.Module):
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t: (self._network(x.reshape(-1, 1, 28, 28),
-                                                   (t.squeeze() / T))
-                                     ).reshape(-1, 28 * 28)
+        self.network = lambda x, t: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T))
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
@@ -224,7 +243,7 @@ class DDPM_low_discrepancy(nn.Module):
         self.sampler = sampler
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
         Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
@@ -242,7 +261,7 @@ class DDPM_low_discrepancy(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        '''
+        """
 
         mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
@@ -269,9 +288,23 @@ class DDPM_low_discrepancy(nn.Module):
             image at timestep t-1
         """
 
-        mean = 1. / torch.sqrt(self.alpha[t]) * (
-                    xt - (self.beta[t]) / torch.sqrt(1 - self.alpha_bar[t]) * self.network(xt, t))
-        std = torch.where(t > 0, torch.sqrt(((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]), 0)
+        mean = (
+            1.0
+            / torch.sqrt(self.alpha[t])
+            * (
+                xt
+                - (self.beta[t])
+                / torch.sqrt(1 - self.alpha_bar[t])
+                * self.network(xt, t)
+            )
+        )
+        std = torch.where(
+            t > 0,
+            torch.sqrt(
+                ((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]
+            ),
+            0,
+        )
 
         return mean + std * epsilon
 
@@ -327,7 +360,7 @@ class DDPM_low_discrepancy(nn.Module):
 
         xt = self.forward_diffusion(x0, t, epsilon)
 
-        return -nn.MSELoss(reduction='mean')(epsilon, self.network(xt, t))
+        return -nn.MSELoss(reduction="mean")(epsilon, self.network(xt, t))
 
     def loss(self, x0):
         """
@@ -335,7 +368,18 @@ class DDPM_low_discrepancy(nn.Module):
         """
         return -self.elbo(x0).mean()
 
+
 #### IMPORTANCE SAMPLING ###############################################################################################
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+history_length = 10  # Number of recent values to store
+T = 1000
+# Initialize a 2D tensor with size (T, history_length)
+history = torch.zeros(T, history_length).to(device)
+pointers = torch.zeros(T, dtype=torch.long).to(device)  # One pointer per type
+weights = torch.ones(T).to(device) / history_length  # Weights for the moving average
+n_updates = torch.zeros(T).to(device)  # Number of updates for each type
+
 
 # Function to update the history tensor
 def update_history(value, type_index):
@@ -349,24 +393,26 @@ def update_history(value, type_index):
     global pointers
     global n_updates
     pointer = pointers[type_index]  # Get the pointer for the type
-    history[type_index, pointer] = value.unsqueeze(-1)  # Update the corresponding position
+    history[type_index, pointer] = value.unsqueeze(
+        -1
+    )  # Update the corresponding position
     pointers[type_index] = (pointer + 1) % history_length  # Move the pointer
 
     # count how many times each type_index has been updated
     counts = torch.bincount(type_index.squeeze(-1), minlength=T)
     n_updates += counts
-    #print(n_updates)
+    # print(n_updates)
     # compute the importance sampling weights
 
     # compute sqrt mean of history
-    #print(history.shape)
+    # print(history.shape)
 
     sqrt_mean_weights = torch.sqrt((history**2).mean(dim=1))
 
-    
     weights_total = sqrt_mean_weights.sum()
     global weights
     weights = sqrt_mean_weights / weights_total
+
 
 class DDPM_importance(nn.Module):
 
@@ -379,35 +425,34 @@ class DDPM_importance(nn.Module):
         network: nn.Module
             The inner neural network used by the diffusion process. Typically a Unet.
         beta_1: float
-            beta_t value at t=1 
+            beta_t value at t=1
         beta_T: [float]
             beta_t value at t=T (last step)
         T: int
             The number of diffusion steps.
         """
-        
+
         super(DDPM_importance, self).__init__()
 
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t: (self._network(x.reshape(-1, 1, 28, 28), 
-                                                   (t.squeeze()/T))
-                                    ).reshape(-1, 28*28)
+        self.network = lambda x, t: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T))
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
 
         # Registering as buffers to ensure they get transferred to the GPU automatically
-        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T+1))
-        self.register_buffer("alpha", 1-self.beta)
+        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T + 1))
+        self.register_buffer("alpha", 1 - self.beta)
         self.register_buffer("alpha_bar", self.alpha.cumprod(dim=0))
-        
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
-        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon. 
+        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
 
         Parameters
@@ -415,7 +460,7 @@ class DDPM_importance(nn.Module):
         x0: torch.tensor
             x value at t=0 (an input image)
         t: int
-            step index 
+            step index
         epsilon:
             noise sample
 
@@ -423,12 +468,12 @@ class DDPM_importance(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        ''' 
+        """
 
-        mean = torch.sqrt(self.alpha_bar[t])*x0
+        mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
-        
-        return mean + std*epsilon
+
+        return mean + std * epsilon
 
     def reverse_diffusion(self, xt, t, epsilon):
         """
@@ -450,12 +495,26 @@ class DDPM_importance(nn.Module):
             image at timestep t-1
         """
 
-        mean =  1./torch.sqrt(self.alpha[t]) * (xt - (self.beta[t])/torch.sqrt(1-self.alpha_bar[t])*self.network(xt, t)) 
-        std = torch.where(t>0, torch.sqrt(((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*self.beta[t]), 0)
-        
-        return mean + std*epsilon
+        mean = (
+            1.0
+            / torch.sqrt(self.alpha[t])
+            * (
+                xt
+                - (self.beta[t])
+                / torch.sqrt(1 - self.alpha_bar[t])
+                * self.network(xt, t)
+            )
+        )
+        std = torch.where(
+            t > 0,
+            torch.sqrt(
+                ((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]
+            ),
+            0,
+        )
 
-    
+        return mean + std * epsilon
+
     @torch.no_grad()
     def sample(self, shape):
         """
@@ -469,21 +528,20 @@ class DDPM_importance(nn.Module):
         Returns
         -------
         torch.tensor
-            sampled image            
+            sampled image
         """
-        
+
         # Sample xT: Gaussian noise
         xT = torch.randn(shape).to(self.beta.device)
 
         xt = xT
         for t in range(self.T, 0, -1):
             noise = torch.randn_like(xT) if t > 1 else 0
-            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)            
+            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)
             xt = self.reverse_diffusion(xt, t, noise)
 
         return xt
 
-    
     def elbo(self, x0):
         """
         ELBO training objective (Algorithm 1 in Ho et al, 2020)
@@ -496,18 +554,19 @@ class DDPM_importance(nn.Module):
         Returns
         -------
         float
-            ELBO value            
+            ELBO value
         """
 
         # Sample time step t
-        t = torch.randint(1, self.T, (x0.shape[0],1)).to(x0.device)
-        
+        t = torch.randint(1, self.T, (x0.shape[0], 1)).to(x0.device)
+
         # Sample noise
         epsilon = torch.randn_like(x0)
 
-
         xt = self.forward_diffusion(x0, t, epsilon)
-        elbo = -nn.MSELoss(reduction='none')(epsilon, self.network(xt, t)).mean(dim=1) # observation-wise loss
+        elbo = -nn.MSELoss(reduction="none")(epsilon, self.network(xt, t)).mean(
+            dim=1
+        )  # observation-wise loss
 
         update_history(elbo, t)
 
@@ -516,25 +575,25 @@ class DDPM_importance(nn.Module):
         have_printed = False
         if (n_updates[1:] > 10).all():
             # print once to notify
-            scaling = 1/ weights[t].detach()
-            #print(scaling)
-
+            scaling = 1 / weights[t].detach()
+            # print(scaling)
 
         return elbo * scaling
 
-    
     def loss(self, x0):
         """
         Loss function. Just the negative of the ELBO.
         """
         return -self.elbo(x0).mean()
 
+
 #### PREDICTING A DIFFERENT TARGET ################################################################################
 #### DDPM for predicting mu #######################################################################################
 
+
 class DDPM_mu(nn.Module):
 
-    def __init__(self, network, T=100, beta_1=1e-4, beta_T=2e-2, pred='mu'):
+    def __init__(self, network, T=100, beta_1=1e-4, beta_T=2e-2, pred="mu"):
         """
         Initialize Denoising Diffusion Probabilistic Model
 
@@ -543,35 +602,34 @@ class DDPM_mu(nn.Module):
         network: nn.Module
             The inner neural network used by the diffusion process. Typically a Unet.
         beta_1: float
-            beta_t value at t=1 
+            beta_t value at t=1
         beta_T: [float]
             beta_t value at t=T (last step)
         T: int
             The number of diffusion steps.
         """
-        
+
         super(DDPM_mu, self).__init__()
 
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t: (self._network(x.reshape(-1, 1, 28, 28), 
-                                                   (t.squeeze()/T))
-                                    ).reshape(-1, 28*28)
+        self.network = lambda x, t: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T))
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
         self.pred = pred
         # Registering as buffers to ensure they get transferred to the GPU automatically
-        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T+1))
-        self.register_buffer("alpha", 1-self.beta)
+        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T + 1))
+        self.register_buffer("alpha", 1 - self.beta)
         self.register_buffer("alpha_bar", self.alpha.cumprod(dim=0))
-        
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
-        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon. 
+        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
 
         Parameters
@@ -579,7 +637,7 @@ class DDPM_mu(nn.Module):
         x0: torch.tensor
             x value at t=0 (an input image)
         t: int
-            step index 
+            step index
         epsilon:
             noise sample
 
@@ -587,12 +645,12 @@ class DDPM_mu(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        ''' 
+        """
 
-        mean = torch.sqrt(self.alpha_bar[t])*x0
+        mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
-        
-        return mean + std*epsilon
+
+        return mean + std * epsilon
 
     def reverse_diffusion(self, xt, t, epsilon):
         """
@@ -613,15 +671,23 @@ class DDPM_mu(nn.Module):
         torch.tensor
             image at timestep t-1
         """
-        if self.pred == 'eps':
-            mean =  1./torch.sqrt(self.alpha[t]) * (xt - (self.beta[t])/torch.sqrt(1-self.alpha_bar[t])*self.network(xt, t)) 
-        elif self.pred == 'mu':
+        if self.pred == "eps":
+            mean = (
+                1.0
+                / torch.sqrt(self.alpha[t])
+                * (
+                    xt
+                    - (self.beta[t])
+                    / torch.sqrt(1 - self.alpha_bar[t])
+                    * self.network(xt, t)
+                )
+            )
+        elif self.pred == "mu":
             mean = self.network(xt, t)
-        #torch.sqrt(((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*
-        std = torch.where(t>0, torch.sqrt(self.beta[t]), 0)
-        return mean + std*epsilon
+        # torch.sqrt(((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*
+        std = torch.where(t > 0, torch.sqrt(self.beta[t]), 0)
+        return mean + std * epsilon
 
-    
     @torch.no_grad()
     def sample(self, shape):
         """
@@ -635,21 +701,20 @@ class DDPM_mu(nn.Module):
         Returns
         -------
         torch.tensor
-            sampled image            
+            sampled image
         """
-        
+
         # Sample xT: Gaussian noise
         xT = torch.randn(shape).to(self.beta.device)
 
         xt = xT
         for t in range(self.T, 0, -1):
             noise = torch.randn_like(xT) if t > 1 else 0
-            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)            
+            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)
             xt = self.reverse_diffusion(xt, t, noise)
 
         return xt
 
-    
     def elbo(self, x0):
         """
         ELBO training objective (Algorithm 1 in Ho et al, 2020)
@@ -662,34 +727,42 @@ class DDPM_mu(nn.Module):
         Returns
         -------
         float
-            ELBO value            
+            ELBO value
         """
 
         # Sample time step t
-        t = torch.randint(1, self.T, (x0.shape[0],1)).to(x0.device)
-        
+        t = torch.randint(1, self.T, (x0.shape[0], 1)).to(x0.device)
+
         # Sample noise
         epsilon = torch.randn_like(x0)
 
-
         xt = self.forward_diffusion(x0, t, epsilon)
-        
-        
-        if self.pred == 'eps':
+
+        if self.pred == "eps":
             target = epsilon
             scaling = 1
-        elif self.pred == 'mu':
+        elif self.pred == "mu":
             target = (
-            (torch.sqrt(self.alpha_bar[t-1]) * self.beta[t] / (1 - self.alpha_bar[t])) * x0 +
-            (torch.sqrt(self.alpha[t]) * (1 - self.alpha_bar[t-1]) / (1 - self.alpha_bar[t])) * xt
-        )
-            beta_tilde = ((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*self.beta[t]
-            scaling = 1 / (2 * self.beta[t])  # or a fixed variance if using an alternative variance schedule
-        
-        
-        
-        
-        elbo = (-nn.MSELoss(reduction='none')(self.network(xt, t), target) * scaling).mean(dim=1) # observation-wise loss
+                torch.sqrt(self.alpha_bar[t - 1])
+                * self.beta[t]
+                / (1 - self.alpha_bar[t])
+            ) * x0 + (
+                torch.sqrt(self.alpha[t])
+                * (1 - self.alpha_bar[t - 1])
+                / (1 - self.alpha_bar[t])
+            ) * xt
+            beta_tilde = (
+                (1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])
+            ) * self.beta[t]
+            scaling = 1 / (
+                2 * self.beta[t]
+            )  # or a fixed variance if using an alternative variance schedule
+
+        elbo = (
+            -nn.MSELoss(reduction="none")(self.network(xt, t), target) * scaling
+        ).mean(
+            dim=1
+        )  # observation-wise loss
 
         update_history(elbo, t)
 
@@ -698,20 +771,20 @@ class DDPM_mu(nn.Module):
         have_printed = False
         if (n_updates[1:] > 10).all():
             # print once to notify
-            is_scale = 1/ weights[t].detach()
-            #print(scaling)
-
+            is_scale = 1 / weights[t].detach()
+            # print(scaling)
 
         return elbo * is_scale
 
-    
     def loss(self, x0):
         """
         Loss function. Just the negative of the ELBO.
         """
         return -self.elbo(x0).mean()
 
+
 #### DDPM for predicting x0 #######################################################################################
+
 
 class DDPM_x0(nn.Module):
     def __init__(
@@ -908,7 +981,6 @@ class DDPM_x0(nn.Module):
         # Sample noise
         epsilon = torch.randn_like(x0)
 
-
         xt = self.forward_diffusion(x0, t, epsilon)
 
         if self.predict_using == "epsilon":
@@ -927,7 +999,9 @@ class DDPM_x0(nn.Module):
 
         return -self.elbo(x0).mean()
 
+
 #### CLASSIFIER GUIDANCE DIFFUSION #######################################################################################
+
 
 class DDPM_class(nn.Module):
 
@@ -940,35 +1014,34 @@ class DDPM_class(nn.Module):
         network: nn.Module
             The inner neural network used by the diffusion process. Typically a Unet.
         beta_1: float
-            beta_t value at t=1 
+            beta_t value at t=1
         beta_T: [float]
             beta_t value at t=T (last step)
         T: int
             The number of diffusion steps.
         """
-        
+
         super(DDPM_class, self).__init__()
 
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t: (self._network(x.reshape(-1, 1, 28, 28), 
-                                                   (t.squeeze()/T))
-                                    ).reshape(-1, 28*28)
+        self.network = lambda x, t: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T))
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
 
         # Registering as buffers to ensure they get transferred to the GPU automatically
-        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T+1))
-        self.register_buffer("alpha", 1-self.beta)
+        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T + 1))
+        self.register_buffer("alpha", 1 - self.beta)
         self.register_buffer("alpha_bar", self.alpha.cumprod(dim=0))
-        
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
-        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon. 
+        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
 
         Parameters
@@ -976,7 +1049,7 @@ class DDPM_class(nn.Module):
         x0: torch.tensor
             x value at t=0 (an input image)
         t: int
-            step index 
+            step index
         epsilon:
             noise sample
 
@@ -984,12 +1057,12 @@ class DDPM_class(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        ''' 
+        """
 
-        mean = torch.sqrt(self.alpha_bar[t])*x0
+        mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
-        
-        return mean + std*epsilon
+
+        return mean + std * epsilon
 
     def reverse_diffusion(self, xt, y, t, epsilon, w=1.0, classifier=None):
         """
@@ -1013,16 +1086,25 @@ class DDPM_class(nn.Module):
         with torch.enable_grad():  # Ensure gradient tracking is enabled
             xt.requires_grad_(True)  # Enable gradients for xt
             grad = classifier.compute_log_gradients(xt, target_class=y)
-        eps_theta = self.network(xt, t) - torch.sqrt(1-self.alpha_bar[t])*grad*w
+        eps_theta = self.network(xt, t) - torch.sqrt(1 - self.alpha_bar[t]) * grad * w
 
-        mean =  1./torch.sqrt(self.alpha[t]) * (xt - (self.beta[t])/torch.sqrt(1-self.alpha_bar[t])*eps_theta) 
-        std = torch.where(t>0, torch.sqrt(((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*self.beta[t]), 0)
-        
-        return mean + std*epsilon
+        mean = (
+            1.0
+            / torch.sqrt(self.alpha[t])
+            * (xt - (self.beta[t]) / torch.sqrt(1 - self.alpha_bar[t]) * eps_theta)
+        )
+        std = torch.where(
+            t > 0,
+            torch.sqrt(
+                ((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]
+            ),
+            0,
+        )
 
-    
-    #@torch.no_grad()
-    def sample(self, shape,y, w=1.0, classifier=None):
+        return mean + std * epsilon
+
+    # @torch.no_grad()
+    def sample(self, shape, y, w=1.0, classifier=None):
         """
         Sample from diffusion model (Algorithm 2 in Ho et al, 2020)
 
@@ -1034,22 +1116,21 @@ class DDPM_class(nn.Module):
         Returns
         -------
         torch.tensor
-            sampled image            
+            sampled image
         """
-        
+
         # Sample xT: Gaussian noise
         xT = torch.randn(shape).to(self.beta.device)
-        #y = torch.arange(shape[0]).to(self.beta.device)
+        # y = torch.arange(shape[0]).to(self.beta.device)
         xt = xT
         for t in range(self.T, 0, -1):
             noise = torch.randn_like(xT) if t > 1 else 0
-            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)            
+            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)
 
             xt = self.reverse_diffusion(xt, y, t, noise, w, classifier)
 
         return xt
 
-    
     def elbo(self, x0):
         """
         ELBO training objective (Algorithm 1 in Ho et al, 2020)
@@ -1062,21 +1143,19 @@ class DDPM_class(nn.Module):
         Returns
         -------
         float
-            ELBO value            
+            ELBO value
         """
 
         # Sample time step t
-        t = torch.randint(1, self.T, (x0.shape[0],1)).to(x0.device)
-        
+        t = torch.randint(1, self.T, (x0.shape[0], 1)).to(x0.device)
+
         # Sample noise
         epsilon = torch.randn_like(x0)
 
-
         xt = self.forward_diffusion(x0, t, epsilon)
-        
-        return -nn.MSELoss(reduction='mean')(epsilon, self.network(xt, t))
 
-    
+        return -nn.MSELoss(reduction="mean")(epsilon, self.network(xt, t))
+
     def loss(self, x0):
         """
         Loss function. Just the negative of the ELBO.
@@ -1085,7 +1164,8 @@ class DDPM_class(nn.Module):
 
 
 #### CLASSIFIER-FREE GUIDANCE DIFFUSION #######################################################################################
-      
+
+
 def set_non_guidance_labels(classes, num_classes=10, non_guidance_index=10, p=0.1):
     """
     Randomly sets a portion of class labels to a non-guidance index.
@@ -1113,6 +1193,7 @@ def set_non_guidance_labels(classes, num_classes=10, non_guidance_index=10, p=0.
     classes[mask] = non_guidance_index
     return classes
 
+
 class DDPM_class_free(nn.Module):
 
     def __init__(self, network, T=100, beta_1=1e-4, beta_T=2e-2):
@@ -1124,35 +1205,34 @@ class DDPM_class_free(nn.Module):
         network: nn.Module
             The inner neural network used by the diffusion process. Typically a Unet.
         beta_1: float
-            beta_t value at t=1 
+            beta_t value at t=1
         beta_T: [float]
             beta_t value at t=T (last step)
         T: int
             The number of diffusion steps.
         """
-        
+
         super(DDPM_class_free, self).__init__()
 
         # Normalize time input before evaluating neural network
         # Reshape input into image format and normalize time value before sending it to network model
         self._network = network
-        self.network = lambda x, t, y: (self._network(x.reshape(-1, 1, 28, 28), 
-                                                   (t.squeeze()/T), y)
-                                    ).reshape(-1, 28*28)
+        self.network = lambda x, t, y: (
+            self._network(x.reshape(-1, 1, 28, 28), (t.squeeze() / T), y)
+        ).reshape(-1, 28 * 28)
 
         # Total number of time steps
         self.T = T
 
         # Registering as buffers to ensure they get transferred to the GPU automatically
-        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T+1))
-        self.register_buffer("alpha", 1-self.beta)
+        self.register_buffer("beta", torch.linspace(beta_1, beta_T, T + 1))
+        self.register_buffer("alpha", 1 - self.beta)
         self.register_buffer("alpha_bar", self.alpha.cumprod(dim=0))
-        
 
     def forward_diffusion(self, x0, t, epsilon):
-        '''
+        """
         q(x_t | x_0)
-        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon. 
+        Forward diffusion from an input datapoint x0 to an xt at timestep t, provided a N(0,1) noise sample epsilon.
         Note that we can do this operation in a single step
 
         Parameters
@@ -1160,7 +1240,7 @@ class DDPM_class_free(nn.Module):
         x0: torch.tensor
             x value at t=0 (an input image)
         t: int
-            step index 
+            step index
         epsilon:
             noise sample
 
@@ -1168,12 +1248,12 @@ class DDPM_class_free(nn.Module):
         -------
         torch.tensor
             image at timestep t
-        ''' 
+        """
 
-        mean = torch.sqrt(self.alpha_bar[t])*x0
+        mean = torch.sqrt(self.alpha_bar[t]) * x0
         std = torch.sqrt(1 - self.alpha_bar[t])
-        
-        return mean + std*epsilon
+
+        return mean + std * epsilon
 
     def reverse_diffusion(self, xt, y, t, epsilon, w=1):
         """
@@ -1194,15 +1274,24 @@ class DDPM_class_free(nn.Module):
         torch.tensor
             image at timestep t-1
         """
-        uncod_class = torch.full_like(y,10).to(self.beta.device)
-        
-        eps = (1 + w) * self.network(xt, t, uncod_class) - w * self.network(xt, t, y)
-        mean =  1./torch.sqrt(self.alpha[t]) * (xt - (self.beta[t])/torch.sqrt(1-self.alpha_bar[t])*eps) 
-        std = torch.where(t>0, torch.sqrt(((1-self.alpha_bar[t-1]) / (1-self.alpha_bar[t]))*self.beta[t]), 0)
-        
-        return mean + std*epsilon
+        uncod_class = torch.full_like(y, 10).to(self.beta.device)
 
-    
+        eps = (1 + w) * self.network(xt, t, uncod_class) - w * self.network(xt, t, y)
+        mean = (
+            1.0
+            / torch.sqrt(self.alpha[t])
+            * (xt - (self.beta[t]) / torch.sqrt(1 - self.alpha_bar[t]) * eps)
+        )
+        std = torch.where(
+            t > 0,
+            torch.sqrt(
+                ((1 - self.alpha_bar[t - 1]) / (1 - self.alpha_bar[t])) * self.beta[t]
+            ),
+            0,
+        )
+
+        return mean + std * epsilon
+
     @torch.no_grad()
     def sample(self, shape, w=1):
         """
@@ -1216,18 +1305,18 @@ class DDPM_class_free(nn.Module):
         Returns
         -------
         torch.tensor
-            sampled image            
+            sampled image
         """
-        
+
         # Sample xT: Gaussian noise
         xT = torch.randn(shape).to(self.beta.device)
         y = torch.arange(shape[0]).to(self.beta.device)
         xt = xT
         for t in range(self.T, 0, -1):
             noise = torch.randn_like(xT) if t > 1 else 0
-            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)            
+            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)
 
-            xt = self.reverse_diffusion(xt, y, t, noise,w)
+            xt = self.reverse_diffusion(xt, y, t, noise, w)
 
         return xt
 
@@ -1243,26 +1332,26 @@ class DDPM_class_free(nn.Module):
         y : tensor
             Classes to sample
         w : int
-            Strenght of the guidance 
-        
+            Strenght of the guidance
+
         Returns
         -------
         torch.tensor
-            sampled image            
+            sampled image
         """
         y = y.to(self.beta.device)
-        
+
         # Sample xT: Gaussian noise
         xT = torch.randn(shape).to(self.beta.device)
         xt = xT
         for t in range(self.T, 0, -1):
             noise = torch.randn_like(xT) if t > 1 else 0
-            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)            
+            t = torch.tensor(t).expand(xt.shape[0], 1).to(self.beta.device)
 
-            xt = self.reverse_diffusion(xt, y, t, noise,w)
+            xt = self.reverse_diffusion(xt, y, t, noise, w)
 
         return xt
-    
+
     def elbo(self, x0, y):
         """
         ELBO training objective (Algorithm 1 in Ho et al, 2020)
@@ -1275,27 +1364,27 @@ class DDPM_class_free(nn.Module):
         Returns
         -------
         float
-            ELBO value            
+            ELBO value
         """
 
         # Sample time step t
-        t = torch.randint(1, self.T, (x0.shape[0],1)).to(x0.device)
-        
+        t = torch.randint(1, self.T, (x0.shape[0], 1)).to(x0.device)
+
         # Sample noise
         epsilon = torch.randn_like(x0)
 
-
         xt = self.forward_diffusion(x0, t, epsilon)
-        
-        y_with_non_guide = set_non_guidance_labels(y, num_classes=10, non_guidance_index=10, p=0.1) # set random labels to non-guidance index
 
-        return -nn.MSELoss(reduction='mean')(epsilon, self.network(xt, t, y_with_non_guide))
+        y_with_non_guide = set_non_guidance_labels(
+            y, num_classes=10, non_guidance_index=10, p=0.1
+        )  # set random labels to non-guidance index
 
-    
+        return -nn.MSELoss(reduction="mean")(
+            epsilon, self.network(xt, t, y_with_non_guide)
+        )
+
     def loss(self, x0, y):
         """
         Loss function. Just the negative of the ELBO.
         """
         return -self.elbo(x0, y).mean()
-
-
