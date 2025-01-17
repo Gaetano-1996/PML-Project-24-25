@@ -1,5 +1,14 @@
 # PML-Project-24-25
+Authors: Gaetano Tedesco, Patrick Jensen, Carsten Jørgensen
+
 ## General 
+This repository contains the code for the project of the course Probabilistic Machine Learning at UCPH. 
+
+The project is divided in two parts:
+* Exercise A: Implementation of the DDPM model and comparison of the models
+* Exercise B: Gaussian Process 
+
+## Installation
 Before running the code, make sure you have the following packages installed:
 * torch==2.3.0
 * torchvision==0.18.0
@@ -15,8 +24,15 @@ In order to install the packages, you can download the `requirements.txt` file f
 ```pip install -r requirements.txt```
 
 ## Exercise A
-## Exercise B
+The files relative to exercise A are:
+* `ddpms.py`: file containing all the implementation of the DDPM models produced
+* `utils.py`: file containing all the utility functions used in the exercise (backbone networks definition, training loop, evaluation functions and support functions)
+* `model_training.ipynb`: notebook executing the training loops for all the models
+* `model_comparison.ipynb`: notebook executing the evaluation of the models (in our case generating the data for the models and computing FID)
+* `visual_comparison.ipynb`: notebook executing the visual comparison of the models
+* `model_checkpoints`: folder containing the checkpoints of the models trained. The checkpoints are meant as shortcut to run the model comparison (both numerical and visual) without retraining the models.
 
+## Exercise B
 There are 3 notebooks covering exercise B:
 
 * fitting_MAP.final.ipynb
